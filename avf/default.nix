@@ -77,7 +77,14 @@ in
         };
 
         enableConfigReplace = mkEnableOption "vm_config.json replace (WARNING ALPHA MAY BRICK INSTALL)";
-        useGenericKernel = mkEnableOption "use latest standard kernel";
+        useGenericKernel = mkEnableOption "use latest standard kernel" // {default = true;};
+        # NOTE (fork): default true — the pinned 6.1 + AOSP guest patches no longer apply on nixos-unstable
+        # (arm64-balloon.patch partly upstream in 6.1.190), and Android 17 boots the host kernel directly anyway.
+        # Set avf.useGenericKernel = false if you need the balloon/cpufreq guest drivers on Android 15/16.
+        # REVERT PRECONDITION (set default back to false only when ALL hold):
+        # 1. `base` is bumped to an AOSP Virtualization rev whose balloon + cpufreq patches apply cleanly to
+        #    the pinned pkgs.linuxPackages_6_1 with no fuzz/rejects, and
+        # 2. `nix build .#packages.aarch64-linux.initialImage` succeeds with useGenericKernel = false.
         enableGraphics = mkEnableOption "graphics support (Weston + gfxstream)" // {default = true;};
       };
     };
