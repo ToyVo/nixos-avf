@@ -160,9 +160,14 @@ install_android17() {
   done
 
   echo 1 | sudo tee /proc/sys/kernel/sysrq
+  # We are about to overwrite the LIVE mounted root. Quiesce first so stray
+  # writes cannot corrupt the fresh image: evict caches and try a read-only
+  # remount (best effort — the install proceeds even if this fails).
+  echo 3 | sudo tee /proc/sys/vm/drop_caches >/dev/null || true
+  sudo mount -o remount,ro / 2>/dev/null || echo "WARN: could not remount / read-only; stray writes may corrupt the image"
   sudo "/dev/shm/lib/$LD_SO_NAME" --library-path /dev/shm/lib /dev/shm/bin/bash -c "
     \"/dev/shm/lib/$LD_SO_NAME\" --library-path /dev/shm/lib /dev/shm/bin/zstd -dc /dev/shm/clean_root_part.zst | \
-    \"/dev/shm/lib/$LD_SO_NAME\" --library-path /dev/shm/lib /dev/shm/bin/dd of=/dev/vda1 bs=4M conv=fsync status=progress && \
+    \"/dev/shm/lib/$LD_SO_NAME\" --library-path /dev/shm/lib /dev/shm/bin/dd of=/dev/vda1 bs=4M oflag=direct conv=fsync status=progress && \
     \"/dev/shm/lib/$LD_SO_NAME\" --library-path /dev/shm/lib /dev/shm/bin/sync && \
     if [ -x /dev/shm/bin/debugfs ]; then
       \"/dev/shm/lib/$LD_SO_NAME\" --library-path /dev/shm/lib /dev/shm/bin/debugfs -w -R 'ssv state 1' /dev/vda1 || true
