@@ -128,12 +128,14 @@ install_android17() {
     zstd -1 -T0 "$IMG_LOC/root_part" -o /dev/shm/clean_root_part.zst
   elif [ -f "$IMG_LOC/root_part.gz" ]; then
     gzip -dc "$IMG_LOC/root_part.gz" | zstd -1 -T0 - -o /dev/shm/clean_root_part.zst
+  elif [ -f /dev/shm/clean_root_part.zst ]; then
+    echo "reusing staged /dev/shm/clean_root_part.zst from previous run"
   else
     echo "Error: root_part image not found in $IMG_LOC"
     exit 1
   fi
 
-  rm -rf "$IMG_LOC"
+  rm -rf "$IMG_LOC" || true
 
   sudo mkdir -p /dev/shm/bin /dev/shm/lib
   for bin in /bin/bash /usr/bin/bash /usr/bin/zstd /bin/dd /usr/bin/dd /bin/sync /usr/bin/sync /sbin/debugfs /usr/sbin/debugfs; do
@@ -142,7 +144,13 @@ install_android17() {
     fi
   done
 
-  LD_SO=$(ls /lib/ld-linux-*.so* /lib64/ld-linux-*.so* /lib/aarch64-linux-gnu/ld-linux-*.so* /lib/x86_64-linux-gnu/ld-linux-*.so* 2>/dev/null | head -n 1)
+  # NOTE: ls exits non-zero when any glob has no match; with `set -o pipefail` + `set -e`
+  # that silently kills the script (stderr is hidden below), so `|| true` + explicit check.
+  LD_SO=$(ls /lib/ld-linux-*.so* /lib64/ld-linux-*.so* /lib/aarch64-linux-gnu/ld-linux-*.so* /lib/x86_64-linux-gnu/ld-linux-*.so* 2>/dev/null | head -n 1 || true)
+  if [ -z "$LD_SO" ]; then
+    echo "Error: no dynamic linker found" >&2
+    exit 1
+  fi
   LD_SO_NAME=$(basename "$LD_SO")
   sudo cp -Lf "$LD_SO" /dev/shm/lib/
   sudo cp -Lf "$LD_SO" "/dev/shm/lib/$LD_SO_NAME"
