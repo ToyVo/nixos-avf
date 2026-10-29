@@ -34,6 +34,8 @@ stdenv.mkDerivation {
 
     OFFSETS=($(sfdisk -l $diskImage -o Start,Sectors | tail -n 2 | grep -o "[0-9]*"))
 
+    # NOTE (issue #40): Terminal app parses build_id's trailing date; keep single spaces, no leading/trailing whitespace.
+    # If the app crashes on boot, preserve the Debian bootstrap id instead: sudo cp build_id "$VM_LOC/build_id_nix"
     echo "nixos_avf/${lib.replaceStrings [ "-" ] [ "_" ] stdenv.targetPlatform.system}/${lib.trivial.version}-0-$(date)" > build_id
 
     # bs=512 -> sector size is 512, skip=start sector, count=size in sectors
