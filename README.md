@@ -65,10 +65,11 @@ Android 17 Terminal (`ferrochrome/5100000`) changed the VM contract: it boots th
 
 1. On your phone: Settings > System > Developer Options > enable **Linux development environment**.
 2. Download the fork image: `image-unstable-aarch64.tar.gz` from `https://github.com/ToyVo/nixos-avf/releases` (build from `trunk` on `nixos-unstable`).
-3. Copy it to the shared folder the VM scans. Either name works — the installer checks all three:
-   - `/sdcard/linux/nixos.tar.gz`, or
-   - `/sdcard/linux/images.tar.gz`, or
-   - `/sdcard/Download/root_part` / `root_part.zst` (raw or zstd-compressed root partition, advanced).
+3. Make the image contents visible to the VM. `initial/replace.sh` (running inside the current Debian VM) looks in exactly these places, in order:
+   - `/mnt/shared/image/` (i.e. `/sdcard/image/` — a directory containing `root_part`, `efi_part`, `vm_config.json`, `build_id`), or
+   - `/mnt/shared/Download/image/` (i.e. `Download/image/` under shared storage), or
+   - `/mnt/shared/Download/` containing `root_part` or `root_part.zst` (Android 17 direct-install path — raw or zstd-compressed root partition only).
+   The easiest route on stock: use the [image-app](https://github.com/nix-community/nixos-avf-image-app) release, or download `image-unstable-aarch64.tar.gz` from `https://github.com/ToyVo/nixos-avf/releases`, extract it (`tar xzf`) and copy the resulting files to one of the locations above.
 4. In the Terminal app: Settings (gear) > **Recovery** (or run `scripts/android-clean-vm.sh`) to wipe any previous Debian/NixOS VM, then relaunch Terminal. You should see "Auto installing" and the `nixos-avf.log` appear under `/sdcard/`.
 5. After first boot: Settings (gear) > **Disk resize** — 8 GB minimum, 12 GB+ recommended before any `nixos-rebuild`.
 6. Verify inside the VM:
