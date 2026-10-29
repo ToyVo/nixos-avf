@@ -59,6 +59,29 @@ If you don't have Developer Options enabled [ » read how to do it here ](https:
 > [!IMPORTANT]
 > The image only works on Android 16+. Additionally this has only been tested on Pixels, this may not work with other virtualization Engines from different vendors.
 
+### Android 17 (Pixel 10a, stock, unrooted) — tested path
+
+Android 17 Terminal (`ferrochrome/5100000`) changed the VM contract: it boots the host `vmlinuz` directly with `root=/dev/vda1` (no `efi_part` boot), runs `/sbin/init`, exposes a read-only `cidata` ISO instead of the `internal` VirtioFS share, and expects `ttyd` over a UNIX socket bridged via VSOCK port 7681 plus `linux_vm_manager`. This fork handles both old (15/16) and new (17) Terminals in one image.
+
+1. On your phone: Settings > System > Developer Options > enable **Linux development environment**.
+2. Download the fork image: `image-unstable-aarch64.tar.gz` from `https://github.com/ToyVo/nixos-avf/releases` (build from `trunk` on `nixos-unstable`).
+3. Copy it to the shared folder the VM scans. Either name works — the installer checks all three:
+   - `/sdcard/linux/nixos.tar.gz`, or
+   - `/sdcard/linux/images.tar.gz`, or
+   - `/sdcard/Download/root_part` / `root_part.zst` (raw or zstd-compressed root partition, advanced).
+4. In the Terminal app: Settings (gear) > **Recovery** (or run `scripts/android-clean-vm.sh`) to wipe any previous Debian/NixOS VM, then relaunch Terminal. You should see "Auto installing" and the `nixos-avf.log` appear under `/sdcard/`.
+5. After first boot: Settings (gear) > **Disk resize** — 8 GB minimum, 12 GB+ recommended before any `nixos-rebuild`.
+6. Verify inside the VM:
+   ```sh
+   systemctl --failed   # expect 0 failed units
+   systemctl status ttyd_uds ttyd_vsock_bridge linux_vm_manager nftables sshd
+   sudo nixos-rebuild dry-build && sudo nixos-rebuild switch
+   aplay -l             # expect VirtIO SoundCard (issue #41)
+   ```
+7. If the Terminal app crashes on boot with a date-parse error (issue #40), recover via **Recovery** wipe and preserve the Debian id before replacing: `sudo cp build_id "$VM_LOC/build_id_nix"` (see `initial/replace.sh`).
+
+What changed under the hood: legacy `ttyd` mTLS + `forwarder_guest_launcher`/`storage_balloon_agent`/`shutdown_runner` only run when `/mnt/internal/ca.crt` exists (Android ≤16); on 17 the image uses `ttyd_uds` + `socat` VSOCK bridge + `linux_vm_manager` from `/mnt/cidata`, links `/sbin/init` → `prepare-root`, and the installer streams `root_part` straight to `/dev/vda1` from a RAM-backed `tmpfs` pivot (no root-owned VirtioFS writes). A slim `android17-only` branch that deletes the legacy path is planned once this boots on your 10a.
+
 ## Debuggable android
 
 You will need a debuggable android build also known as userdebug (eng build also works)
